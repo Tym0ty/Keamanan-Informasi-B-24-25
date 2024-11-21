@@ -53,9 +53,10 @@ def handle_client(client_socket, client_address):
         # Receive encrypted DES key from the client
         encrypted_des_key = client_socket.recv(4096).decode()
         encrypted_des_key = list(map(int, encrypted_des_key.split(',')))
+        print(f"Encrypted DES key from {client_address} (Client {client_id}): {encrypted_des_key}")
         des_key = RSA_Algorithm.decrypt(encrypted_des_key, private_key)
         client_keys[client_socket] = des_key
-        print(f"Received and decrypted DES key from {client_address}: {des_key}")
+       # print(f"Decrypted DES key from {client_address}: {des_key}")
 
         # Main loop to handle incoming messages
         while True:
@@ -65,9 +66,9 @@ def handle_client(client_socket, client_address):
                 break
 
             encrypted_message_bits = list(map(int, encrypted_message.split(',')))
-            print(f"Encrypted message from client{client_ids[client_socket]}: {encrypted_message_bits}")
+            print(f"Encrypted message from Client {client_ids[client_socket]}: {encrypted_message_bits}")
             decrypted_message = des_decrypt(encrypted_message_bits, des_key)
-            print(f"Decrypted message from client {client_ids[client_socket]}: {decrypted_message}")
+            #print(f"Decrypted message from Client {client_ids[client_socket]}: {decrypted_message}")
 
             # Broadcast the decrypted message to other clients
             broadcast_message(decrypted_message, client_socket)
