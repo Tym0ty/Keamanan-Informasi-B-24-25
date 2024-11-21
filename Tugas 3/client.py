@@ -4,14 +4,14 @@ from rsa import RSA_Algorithm
 
 # Generate a random DES key
 des_key = "mysecret"  # 8-byte key (must be 8 characters for DES)
-print(f"Generated DES key: {des_key}")
+print(f"Generated DES key for Client 1: {des_key}")
 
-# Connect to the server
+# Connect to the server (PKA)
 host = '127.0.0.1'
 port = 65432
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((host, port))
-print("Connected to the server.")
+print("Client 1 connected to the server.")
 
 # Receive public key from the server
 public_key_str = client_socket.recv(1024).decode()
