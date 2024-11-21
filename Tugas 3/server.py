@@ -1,4 +1,5 @@
 import socket
+import threading
 from des import des_decrypt, des_encrypt
 from rsa import RSA_Algorithm
 
@@ -12,44 +13,102 @@ host = '127.0.0.1'
 port = 65432
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind((host, port))
-server_socket.listen(1)  # Allow 1 client
+server_socket.listen(5)  # Allow up to 5 clients
 
-print("Public Key Authority is listening...")
+clients = []
+client_keys = {}  # Map client sockets to DES keys
+client_ids = {}  # Map client sockets to IDs
 
-# Accept connection from Client 1
-client_socket1, client_address1 = server_socket.accept()
-print(f"Client 1 connected from {client_address1}")
 
-# Send the public key of the PKA to Client 1
-client_socket1.send(f"{public_key[0]},{public_key[1]}".encode())
-print("Public key sent to Client 1.")
+def broadcast_message(message, sender_socket):
+    """
+    Broadcast a message to all clients except the sender, with sender identity.
+    """
+    sender_id = client_ids[sender_socket]
+    formatted_message = f"Pesan dari client {sender_id}: {message}"
+    for client in clients:
+        if client != sender_socket:
+            des_key = client_keys[client]
+            encrypted_message = des_encrypt(formatted_message, des_key)
+            encrypted_message_str = ','.join(map(str, encrypted_message))
+            try:
+                client.send(encrypted_message_str.encode())
+            except Exception as e:
+                print(f"Error sending message to {client.getpeername()}: {e}")
 
-# Receive encrypted DES key from Client 1
-encrypted_des_key1 = client_socket1.recv(4096).decode()
-encrypted_des_key1 = list(map(int, encrypted_des_key1.split(',')))
-des_key1 = RSA_Algorithm.decrypt(encrypted_des_key1, private_key)
-print(f"Received and decrypted DES key from Client 1: {des_key1}")
 
-# Communication loop with only Client 1
-while True:
-    # Receive encrypted message from Client 1
-    encrypted_message1 = client_socket1.recv(4096).decode()
-    if encrypted_message1 == 'exit':
-        print("Client 1 has disconnected.")
-        break
-    encrypted_message_bits1 = list(map(int, encrypted_message1))
-    print(f"Encrypted message from Client 1: {encrypted_message_bits1}")
+def handle_client(client_socket, client_address):
+    """
+    Handle communication with a client.
+    """
+    try:
+        # Assign an ID to the client
+        client_id = len(clients)
+        client_ids[client_socket] = client_id
 
-    # Decrypt message using DES key of Client 1
-    decrypted_message1 = des_decrypt(encrypted_message_bits1, des_key1)
-    print(f"Decrypted message from Client 1: {decrypted_message1}")
+        # Send the public key of the PKA to the client
+        client_socket.send(f"{public_key[0]},{public_key[1]}".encode())
+        print(f"Public key sent to {client_address} (Client {client_id}).")
 
-    # Respond to Client 1 using DES encryption
-    response1 = input("Enter response to Client 1: ")
-    encrypted_response1 = des_encrypt(response1, des_key1)
-    encrypted_response_str1 = ''.join(map(str, encrypted_response1))
-    client_socket1.send(encrypted_response_str1.encode())
+        # Receive encrypted DES key from the client
+        encrypted_des_key = client_socket.recv(4096).decode()
+        encrypted_des_key = list(map(int, encrypted_des_key.split(',')))
+        des_key = RSA_Algorithm.decrypt(encrypted_des_key, private_key)
+        client_keys[client_socket] = des_key
+        print(f"Received and decrypted DES key from {client_address}: {des_key}")
 
-# Close the connection
-client_socket1.close()
-server_socket.close()
+        # Main loop to handle incoming messages
+        while True:
+            encrypted_message = client_socket.recv(4096).decode()
+            if encrypted_message.lower() == 'exit':
+                print(f"Client {client_address} disconnected.")
+                break
+
+            encrypted_message_bits = list(map(int, encrypted_message.split(',')))
+            print(f"Encrypted message from client{client_ids[client_socket]}: {encrypted_message_bits}")
+            decrypted_message = des_decrypt(encrypted_message_bits, des_key)
+            print(f"Decrypted message from client {client_ids[client_socket]}: {decrypted_message}")
+
+            # Broadcast the decrypted message to other clients
+            broadcast_message(decrypted_message, client_socket)
+
+    except Exception as e:
+        print(f"Error handling client {client_address}: {e}")
+
+    finally:
+        # Cleanup on client disconnect
+        client_socket.close()
+        clients.remove(client_socket)
+        del client_keys[client_socket]
+        del client_ids[client_socket]
+        print(f"Client {client_address} has been removed.")
+
+        # Stop the server if no clients are connected
+        if not clients:
+            stop_server()
+
+
+def stop_server():
+    """
+    Stop the server gracefully by closing all client connections.
+    """
+    print("Stopping server...")
+    for client in clients:
+        client.close()
+    server_socket.close()
+    print("Server stopped.")
+    exit(0)  # Ensure the script stops execution
+
+
+# Accept connections from clients
+try:
+    print("Server is listening for clients...")
+    while True:
+        client_socket, client_address = server_socket.accept()
+        clients.append(client_socket)
+        print(f"Client {client_address} connected.")
+        threading.Thread(target=handle_client, args=(client_socket, client_address), daemon=True).start()
+
+except KeyboardInterrupt:
+    # Handle server shutdown gracefully
+    stop_server()
