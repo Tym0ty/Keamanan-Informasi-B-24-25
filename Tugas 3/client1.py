@@ -38,7 +38,6 @@ client2_public_key = get_key_from_pka("client2_public_key")
 client2_public_key = parse_key(client2_public_key)
 print(f"Client2's Public Key: {client2_public_key}")
 
-# Connect to client
 host = '127.0.0.1'
 port = 65000
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -50,25 +49,18 @@ print("Connection from:", address)
 
 while True:
     print('Tulis "exit" untuk keluar.')
-    # Get message input from the user
     message = input("Masukkan Pesan : ")
     if message.lower() == 'exit':
         conn.send(message.encode())
         break
 
-    # Encrypt the message using DES
     encrypted_message = des_encrypt(message, des_key)
     encrypted_message_str = ' '.join(map(str, encrypted_message))
     
     print("Encrypted message sent.")
 
-    # Encrypt the DES key using client1's private key
     encrypted_des_key = RSA_Algorithm.encrypt(des_key, client1_private_key)
-
-    # Convert the `encrypted_des_key` list of integers to a string
     encrypted_des_key_str = ' '.join(map(str, encrypted_des_key))
-
-    # Encrypt the DES key again using client2's public key
     final_encrypted_des_key = RSA_Algorithm.encrypt(encrypted_des_key_str, client2_public_key)
 
     final_encrypted_des_key_str = ' '.join(map(str, final_encrypted_des_key))
@@ -78,7 +70,6 @@ while True:
 
     conn.sendall(payload.encode())
 
-   # Receive the server's response
     response = conn.recv(1024).decode()
 
     if response == 'exit':
@@ -87,7 +78,6 @@ while True:
 
     message_response_list = list(map(int,response.split(" ")))
     print()
-    # Convert `message_response` into a list of integers before decrypting
     decrypted_response = des_decrypt(list(map(int, response)), des_key)
     print(f"Pesan dari Client 2: {decrypted_response}")
     print()
