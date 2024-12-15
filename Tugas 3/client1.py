@@ -49,8 +49,9 @@ conn, address = server_socket.accept()
 print("Connection from:", address)
 
 while True:
+    print('Tulis "exit" untuk keluar.')
     # Get message input from the user
-    message = input("Enter message to send to the server (or type 'exit' to quit): ")
+    message = input("Masukkan Pesan : ")
     if message.lower() == 'exit':
         conn.send(message.encode())
         break
@@ -67,16 +68,10 @@ while True:
     # Convert the `encrypted_des_key` list of integers to a string
     encrypted_des_key_str = ' '.join(map(str, encrypted_des_key))
 
-    print(encrypted_des_key_str)
-
     # Encrypt the DES key again using client2's public key
     final_encrypted_des_key = RSA_Algorithm.encrypt(encrypted_des_key_str, client2_public_key)
 
-    print()
-
     final_encrypted_des_key_str = ' '.join(map(str, final_encrypted_des_key))
-
-    print(final_encrypted_des_key_str)
 
     delimiter = "|"
     payload=encrypted_message_str + delimiter + final_encrypted_des_key_str
@@ -85,27 +80,17 @@ while True:
 
    # Receive the server's response
     response = conn.recv(1024).decode()
-    message_response, des_key_response = response.split(delimiter)
 
-    # Convert `des_key_response` back into a list of integers
-    des_key_response_list = list(map(int, des_key_response.split(" ")))
-
-    # Decrypt the des_key using client1's private key
-    decrypted_des_key = des_decrypt(des_key_response_list, client1_private_key)
-    
-    print(f"Decrypted DES key: {decrypted_des_key}")
-    # Decrypt the des_key again using client2's public key
-    final_decrypted_des_key = des_decrypt(decrypted_des_key, client2_public_key)
-
-    if message_response == 'exit':
+    if response == 'exit':
         print("Server has disconnected.")
         break
 
+    message_response_list = list(map(int,response.split(" ")))
+    print()
     # Convert `message_response` into a list of integers before decrypting
-    message_response_list = list(map(int, message_response))
-    decrypted_response = des_decrypt(message_response_list, des_key)
-    print(f"Decrypted response: {decrypted_response}")
-
+    decrypted_response = des_decrypt(list(map(int, response)), des_key)
+    print(f"Pesan dari Client 2: {decrypted_response}")
+    print()
 conn.close()
 server_socket.close()
 print("Disconnected from the server.")
