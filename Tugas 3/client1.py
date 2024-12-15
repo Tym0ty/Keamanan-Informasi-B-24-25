@@ -1,8 +1,10 @@
 import socket
-import threading
 from des import des_encrypt, des_decrypt
 from rsa import RSA_Algorithm
+import random
 
+def generate_random_nonce():
+    return random.randint(100000, 999999)
 # Generate a random DES key
 des_key = "mysecret"  # 8-byte key (must be 8 characters for DES)
 print(f"Generated DES key for Client: {des_key}")
@@ -47,6 +49,42 @@ server_socket.listen(1)
 conn, address = server_socket.accept()
 print("Connection from:", address)
 
+# Generate Nonce 1 and send it to Client 2
+n1 = generate_random_nonce()
+n1_str = str(n1)
+encrypted_n1 = RSA_Algorithm.encrypt(n1_str, client2_public_key)
+encrypted_n1_str=' '.join(map(str, encrypted_n1))
+conn.sendall(encrypted_n1_str.encode())
+
+# Received Nonce 1 and verify it with Generated Nonce !
+received_n1 = conn.recv(1024).decode()
+received_n1_list = list(map(int, received_n1.split(" ")))
+decrypted_received_n1 = RSA_Algorithm.decrypt(received_n1_list, client1_private_key)
+
+print()
+# Verify Nonce 1
+if n1_str == decrypted_received_n1:
+    print(f"Generated {n1_str} == Received {decrypted_received_n1}")
+    print("Nonce 1 verified.")
+else:
+    print("Nonce 1 verification failed.")
+    conn.close()
+    server_socket.close()
+    print("Disconnected from the server.")
+
+print()
+
+# Receive Nonce 2 from Client 2 and send it back encrypted
+n2 = conn.recv(1024).decode()
+n2_list = list(map(int, n2.split(" ")))
+decrypted_n2 = RSA_Algorithm.decrypt(n2_list, client1_private_key)
+
+encrypted_n2 = RSA_Algorithm.encrypt(decrypted_n2, client2_public_key)
+encrypted_n2_str=' '.join(map(str, encrypted_n2))
+
+conn.sendall(encrypted_n2_str.encode())
+
+# Secure communication begins
 while True:
     print('Tulis "exit" untuk keluar.')
     message = input("Masukkan Pesan : ")
@@ -56,7 +94,6 @@ while True:
 
     encrypted_message = des_encrypt(message, des_key)
     encrypted_message_str = ' '.join(map(str, encrypted_message))
-    
     print("Encrypted message sent.")
 
     encrypted_des_key = RSA_Algorithm.encrypt(des_key, client1_private_key)
