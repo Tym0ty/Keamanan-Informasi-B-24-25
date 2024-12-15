@@ -1,7 +1,10 @@
 import socket
-import threading
 from des import des_encrypt, des_decrypt
 from rsa import RSA_Algorithm
+import random
+
+def generate_random_nonce():
+    return random.randint(100000, 999999)
 
 # Generate a random DES key
 des_key = "mysecret"  # 8-byte key (must be 8 characters for DES)
@@ -45,6 +48,42 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((host, port))
 print("Connected to the server.")
 
+# Received client 1's nonce 1
+n1 = client_socket.recv(1024).decode()
+n1_list = list(map(int, n1.split(" ")))
+decrypted_n1 = RSA_Algorithm.decrypt(n1_list, client2_private_key)
+print(f"Decrypted N1: {decrypted_n1}")
+
+# Sending nonce 1 to client 1
+encrypted_n1 = RSA_Algorithm.encrypt(decrypted_n1, client1_public_key)
+encrypted_n1_str=' '.join(map(str, encrypted_n1))
+client_socket.sendall(encrypted_n1_str.encode())
+
+# Generate nonce 2 and send it to client 1
+n2 = generate_random_nonce()
+n2_str = str(n2)
+encrypted_n2 = RSA_Algorithm.encrypt(n2_str, client1_public_key)
+encrypted_n2_str=' '.join(map(str, encrypted_n2))
+client_socket.sendall(encrypted_n2_str.encode())
+
+# Received Nonce 2 and compare it with generated Nonce 2
+received_n2 = client_socket.recv(1024).decode()
+received_n2_list = list(map(int, received_n2.split(" ")))
+decrypted_received_n2 = RSA_Algorithm.decrypt(received_n2_list, client2_private_key)
+
+print()
+# Verify Nonce 2
+if n2_str == decrypted_received_n2:
+    print(f"Generated {n2_str} == Received {decrypted_received_n2}")
+    print("Nonce 2 verified.")
+else:
+    print("Nonce 2 verification failed.")
+    client_socket.close()
+    print("Disconnected from the server.")
+
+print()
+
+# Secure communication begins
 while True:
     response = client_socket.recv(1024).decode()
 
