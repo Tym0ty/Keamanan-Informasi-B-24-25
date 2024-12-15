@@ -58,17 +58,18 @@ while True:
     message_response,des_key_response=response.split(delimiter)
 
     # Convert `des_key_response` back into a list of integers
-    des_key_response_list = [int(des_key_response[i:i+8]) for i in range(0, len(des_key_response), 8)]
+    des_key_response_list = list(map(int, des_key_response.split(" ")))
 
     print(des_key_response_list)
 
     # Decrypt the des_key using client2's private key
     decrypted_des_key=RSA_Algorithm.decrypt(des_key_response_list,client2_private_key)
 
-    print(decrypted_des_key)
+    print()
 
-    des_key_response_list2 = [int(decrypted_des_key[i:i+8]) for i in range(0, len(des_key_response), 8)]
+    des_key_response_list2 = list(map(int, decrypted_des_key.split(" ")))
 
+    print(des_key_response_list2)
     # Decrypt the des_key again using clien1's public key
     final_decrypted_des_key = RSA_Algorithm.decrypt(des_key_response_list2, client1_public_key)
 
@@ -78,12 +79,12 @@ while True:
         print("Server has disconnected.")
         break
 
-    decrypted_response = des_decrypt(list(map(int, message_response)), des_key)
+    decrypted_response = des_decrypt(list(map(int, message_response)), final_decrypted_des_key)
     print(f"Decrypted response: {decrypted_response}")
 
     # Encrypt the message using DES
     encrypted_message = des_encrypt(message, des_key)
-    encrypted_message_str = ''.join(map(str, encrypted_message))
+    encrypted_message_str = ' '.join(map(str, encrypted_message))
     
     print("Encrypted message sent.")
 
